@@ -528,6 +528,33 @@ const specs16 = `{
 "security": {}
 }`;
 
+const specs17 = `{
+"servers": [
+    {
+        "url":  "https://myapi.com/api"
+    }
+],
+"paths": {},
+"components": {
+    "securitySchemes": {
+      "mySecurityScheme": {
+        "type": "apiKey",
+        "name": "X-MY-API-KEY",
+        "in": "query"
+      },
+      "mySecurityScheme": {
+        "type": "apiKey",
+        "name": "X-MY-API-KEY",
+        "in": "query"
+      }
+    }
+},
+"security": {
+  "mySecurityScheme": [],
+  "mySecurityScheme": []
+}
+}`;
+
 function formattingMessage(paramPath, error = false) {
   return { level: error ? 'error' : 'warning', message: `${paramPath} is not formatted correctly` };
 }
@@ -550,6 +577,10 @@ function extraFieldMessage(param) {
 
 function conditionNotMetMessage(paramPath, param) {
   return { level: 'error', message: `Condition in ${paramPath} is not met with ${param}` };
+}
+
+function duplicateMessage(paramPath, param) {
+  return { level: 'error', message: `Duplicate parameter ${param} in ${paramPath}` };
 }
 
 describe('validator', () => {
@@ -664,6 +695,14 @@ describe('validator', () => {
           conditionNotMetMessage('paths./{myParam}/myPath/{myParam2}', 'myParam2')
         ]
       });
+    });
+
+    test('duplicates', () => {
+      expect(validator.isSpecsValid(specs17)).toMatchObject({
+        valid: false, messages:[
+            duplicateMessage('security', 'mySecurityScheme')
+        ]
+      })
     });
   });
 });

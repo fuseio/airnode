@@ -87,6 +87,7 @@ const specsStructure = {
     '__keyRegexp': '^[^\\s\'"\\\\]+$',
     '__objectItem': {
       '__arrayItem': {},
+      '__unique': {},
       '__conditions': [
         {
           '__require': {
@@ -122,6 +123,59 @@ function replaceConditionalMatch(match, specs) {
   }
 
   return parsedSpecs;
+}
+
+function getParam(searchedParamPath, currentPath, specs, specsRoot) {
+  let workingDir = specs;
+  let requiredPath = '';
+
+  if (searchedParamPath[0] === '/') {
+    searchedParamPath = searchedParamPath.slice(1);
+    workingDir = specsRoot;
+    requiredPath = searchedParamPath;
+  } else {
+    requiredPath = `${currentPath}${currentPath ? '.' : ''}${searchedParamPath}`;
+  }
+
+  let thisName = getLastParamName(currentPath);
+  requiredPath = requiredPath.replace(/__this_name/g, thisName);
+
+  while (searchedParamPath.length) {
+    if (searchedParamPath.startsWith('__this_name')) {
+      searchedParamPath = searchedParamPath.replace('__this_name', '');
+
+      if (!workingDir[thisName]) {
+        return `Missing parameter ${requiredPath}`;
+      }
+
+      workingDir = workingDir[thisName];
+
+      if (searchedParamPath.startsWith('.')) {
+        searchedParamPath = searchedParamPath.replace('.', '');
+      }
+    } else {
+      const dotIndex = searchedParamPath.indexOf('.');
+      let paramName = searchedParamPath;
+
+      if (dotIndex > 0) {
+        paramName = searchedParamPath.substr(0, dotIndex);
+      }
+
+      searchedParamPath = searchedParamPath.replace(paramName, '');
+
+      if (searchedParamPath.startsWith('.')) {
+        searchedParamPath = searchedParamPath.replace('.', '');
+      }
+
+      if (!workingDir[paramName]) {
+        return `Missing parameter ${requiredPath}`;
+      }
+
+      workingDir = workingDir[paramName];
+    }
+  }
+
+  return workingDir;
 }
 
 function validateSpecs(specs, specsStruct, paramPath, specsRoot) {
@@ -181,58 +235,44 @@ function validateSpecs(specs, specsStruct, paramPath, specsRoot) {
           }
         } else {
           for (let requiredParam of Object.keys(condition['__require'])) {
-            let workingDir = specs;
-            let requiredPath = '';
+            let resultParam = getParam(requiredParam, paramPath, specs, specsRoot);
 
-            if (requiredParam[0] === '/') {
-              requiredParam = requiredParam.slice(1);
-              workingDir = specsRoot;
-              requiredPath = requiredParam;
-            } else {
-              requiredPath = `${paramPath}${paramPath ? '.' : ''}${requiredParam}`;
+            if (typeof resultParam === 'string') {
+              valid = false;
+              messages.push({ level: 'error', message: resultParam });
+            }
+          }
+        }
+      }
+
+      continue;
+    }
+
+    if (key === '__unique') {
+      const lastDot = paramPath.lastIndexOf('.');
+      let parentPath = paramPath;
+      let paramName = paramPath;
+
+      if (lastDot >= 0) {
+        parentPath = paramPath.substr(0, lastDot);
+        paramName = paramPath.substr(lastDot + 1);
+      }
+
+      let parent = getParam(`/${parentPath}`, paramPath, specs, specsRoot);
+      let found = false;
+
+      if (typeof parent === 'object') {
+        let paramList = Array.isArray(parent) ? parent : Object.keys(parent);
+
+        for (const param of paramList) {
+          if (param === paramName) {
+            if (found) {
+              valid = false;
+              messages.push({level: 'error', message: `Duplicate parameter ${paramName} in ${parentPath}`});
+              break;
             }
 
-            let thisName = getLastParamName(paramPath);
-            requiredPath = requiredPath.replace(/__this_name/g, thisName);
-
-            while (requiredParam.length) {
-              if (requiredParam.startsWith('__this_name')) {
-                requiredParam = requiredParam.replace('__this_name', '');
-
-                if (!workingDir[thisName]) {
-                  valid = false;
-                  messages.push({ level: 'error', message: `Missing parameter ${requiredPath}`});
-                  break;
-                }
-
-                workingDir = workingDir[thisName];
-
-                if (requiredParam.startsWith('.')) {
-                  requiredParam = requiredParam.replace('.', '');
-                }
-              } else {
-                const dotIndex = requiredParam.indexOf('.');
-                let paramName = requiredParam;
-
-                if (dotIndex > 0) {
-                  paramName = requiredParam.substr(0, dotIndex);
-                }
-
-                requiredParam = requiredParam.replace(paramName, '');
-
-                if (requiredParam.startsWith('.')) {
-                  requiredParam = requiredParam.replace('.', '');
-                }
-
-                if (!workingDir[paramName]) {
-                  valid = false;
-                  messages.push({ level: 'error', message: `Missing parameter ${requiredPath}`});
-                  break;
-                }
-
-                workingDir = workingDir[paramName];
-              }
-            }
+            found = true;
           }
         }
       }
