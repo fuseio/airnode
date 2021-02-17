@@ -10,6 +10,7 @@
     "deploy:goerli": "hardhat deploy --network goerli",
     "deploy:xdai": "hardhat deploy --network xdai",
     "deploy:fantom": "hardhat deploy --network fantom",
+    "deploy:fuse": "hardhat deploy --network fuse",
     "test": "hardhat test",
     "test:coverage": "hardhat coverage",
     "flatten": "yarn run flatten:airnode && yarn run flatten:convenience && yarn run flatten:delete-license-lines",

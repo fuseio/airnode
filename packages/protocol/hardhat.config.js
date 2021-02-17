@@ -34,6 +34,10 @@ module.exports = {
       url: credentials.fantom.providerUrl || '',
       accounts: { mnemonic: credentials.fantom.mnemonic || '' },
     },
+    fuse: {
+      url: credentials.fuse.providerUrl || '',
+      accounts: { mnemonic: credentials.fuse.mnemonic || '' },
+    },
   },
   solidity: {
     version: '0.6.12',
